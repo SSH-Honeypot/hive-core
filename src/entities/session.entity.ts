@@ -9,6 +9,9 @@ export class Session {
   @Column()
   ip: string;
 
+  @Column()
+  sensor: string;
+
   @OneToMany(() => LoginAttempt, (loginAttempt) => loginAttempt.session)
   loginAttempts: LoginAttempt[];
 }

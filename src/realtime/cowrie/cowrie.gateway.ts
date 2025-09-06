@@ -49,6 +49,7 @@ export class CowrieGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async handleMessage(
     client: Socket,
     payload: {
+      sensor: string;
       session: string;
       src_ip: string;
       username: string;
@@ -61,15 +62,22 @@ export class CowrieGateway implements OnGatewayConnection, OnGatewayDisconnect {
     );
     this.frontendGateway.server.emit('login.failed', payload);
 
-    let session = new Session();
-    session.uuid = payload.session;
-    session.ip = payload.src_ip;
-    session = await this.sessionRepository.save(session);
+    let session = await this.sessionRepository.findOneBy({
+      uuid: payload.session,
+    });
+
+    if (!session) {
+      session = new Session();
+      session.uuid = payload.session;
+      session.ip = payload.src_ip;
+      session.sensor = payload.sensor;
+      session = await this.sessionRepository.save(session);
+    }
 
     const loginAttempt = new LoginAttempt();
     loginAttempt.session = session;
     loginAttempt.username = payload.username;
     loginAttempt.password = payload.password;
-    await this.loginAttemptRepository.save(loginAttempt);
+    await this.loginAttemptRepository.insert(loginAttempt);
   }
 }

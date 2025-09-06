@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { RealtimeModule } from './realtime/realtime.module';
@@ -24,7 +23,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
     }),
     RealtimeModule,
   ],
-  controllers: [AppController],
+  controllers: [],
   providers: [AppService],
 })
 export class AppModule {}
