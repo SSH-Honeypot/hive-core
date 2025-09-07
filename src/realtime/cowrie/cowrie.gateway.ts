@@ -15,6 +15,8 @@ import { Session } from '../../entities/session.entity';
 import { Repository } from 'typeorm';
 import { LoginAttempt } from '../../entities/login-attempt.entity';
 
+import * as geoip from 'geoip-country';
+
 @WebSocketGateway(3002, {
   cors: {
     origin: '*',
@@ -22,7 +24,6 @@ import { LoginAttempt } from '../../entities/login-attempt.entity';
 })
 export class CowrieGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() server: Server;
-
   private readonly logger = new Logger(CowrieGateway.name);
 
   constructor(
@@ -60,7 +61,8 @@ export class CowrieGateway implements OnGatewayConnection, OnGatewayDisconnect {
       `${client.handshake.auth.sensor} [${client.id}]: ` +
         JSON.stringify(payload),
     );
-    this.frontendGateway.server.emit('login.failed', payload);
+
+    const countryCode: string = geoip.lookup(payload.src_ip)?.country ?? '';
 
     let session = await this.sessionRepository.findOneBy({
       uuid: payload.session,
@@ -70,6 +72,7 @@ export class CowrieGateway implements OnGatewayConnection, OnGatewayDisconnect {
       session = new Session();
       session.uuid = payload.session;
       session.ip = payload.src_ip;
+      session.country = countryCode;
       session.sensor = payload.sensor;
       session = await this.sessionRepository.save(session);
     }
@@ -79,5 +82,29 @@ export class CowrieGateway implements OnGatewayConnection, OnGatewayDisconnect {
     loginAttempt.username = payload.username;
     loginAttempt.password = payload.password;
     await this.loginAttemptRepository.insert(loginAttempt);
+
+    this.frontendGateway.onCowrieLoginEvent({
+      date: new Date(),
+      session: payload.session,
+      sensor: payload.sensor,
+      src_ip: this.anonymizeIPv4(payload.src_ip),
+      country: countryCode,
+      username: payload.username,
+      password: payload.password,
+    });
+  }
+
+  private anonymizeIPv4(ip: string): string {
+    const ipv4Pattern = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+    if (!ipv4Pattern.test(ip)) {
+      throw new Error('Invalid IPv4 address!');
+    }
+
+    const parts = ip.split('.');
+
+    const thirdOctet = 'X'.repeat(parts[2].length);
+    const fourthOctet = 'X'.repeat(parts[3].length);
+
+    return `${parts[0]}.${parts[1]}.${thirdOctet}.${fourthOctet}`;
   }
 }

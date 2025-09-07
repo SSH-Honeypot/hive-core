@@ -1,9 +1,10 @@
 import {
-  SubscribeMessage,
+  ConnectedSocket,
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
-import { Server } from 'socket.io';
+import { Server, Socket } from 'socket.io';
+import { LoginEvent } from '../../types/login-event';
 
 @WebSocketGateway(3001, {
   cors: {
@@ -13,8 +14,15 @@ import { Server } from 'socket.io';
 export class FrontendGateway {
   @WebSocketServer() server: Server;
 
-  @SubscribeMessage('message')
-  handleMessage(client: any, payload: any): string {
-    return 'Hello world!';
+  lastLogs: LoginEvent[] = [];
+
+  handleConnection(@ConnectedSocket() client: Socket) {
+    client.emit('initial-data', this.lastLogs);
+  }
+
+  public onCowrieLoginEvent(event: LoginEvent): void {
+    this.lastLogs.push(event);
+    if (this.lastLogs.length > 30) this.lastLogs.shift();
+    this.server.emit('login.failed', event);
   }
 }

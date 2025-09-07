@@ -10,6 +10,9 @@ export class Session {
   ip: string;
 
   @Column()
+  country: string;
+
+  @Column()
   sensor: string;
 
   @OneToMany(() => LoginAttempt, (loginAttempt) => loginAttempt.session)
